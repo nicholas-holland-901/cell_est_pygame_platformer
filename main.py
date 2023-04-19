@@ -1,4 +1,5 @@
 import pygame
+import player
 from enum import Enum
 
 autoload = True
@@ -37,29 +38,7 @@ next_room = 0
 
 tile_type = TileType.ground
 
-# Player stuff
-plr_pos = pygame.Vector2(WIDTH / 2, HEIGHT / 2)
-plr_velocity = pygame.Vector2(0, 0)
-direction = pygame.Vector2(0, 0)
-plr_acceleration = pygame.Vector2(0, 0)
-can_dash = True
-grounded = False
-dashing = False
-jumping = False
-in_water = False
-trying_to_dash = False
-dash_cooldown = 0
-friction = -0.2
-dash_power = 5
-time_since_last_dash = 0
-time_since_last_jump = 0
-gravity_force = 0.4
-gravity_acceleration = 0.7
-dash_length = 400
-
 player_spawn_point = pygame.Vector2(300, 400)
-
-acceleration = 0.9
 
 # Tile types
 ground_tiles = []
@@ -78,6 +57,14 @@ no_dash_player_color = (100, 100, 255)
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
 tiles = [pygame.Rect(0, HEIGHT - 50, WIDTH, 50), pygame.Rect(500, 400, 30, 30), pygame.Rect(300, 400, 30, 70)]
+
+
+def player_setup():
+    global player
+    player = player.Player(screen, 0, 0)
+    player.ground_tiles = ground_tiles
+    player.water_tiles = water_tiles
+
 
 if autoload:
     f = open("map_layout", "a")
@@ -109,8 +96,8 @@ if autoload:
                         # Player spawn point
                         player_spawn_point.x = x
                         player_spawn_point.y = y
-                        plr_pos.x = x
-                        plr_pos.y = y
+                        player.pos.x = x
+                        player.pos.y = y
 
 
 # Used for buttons to see if the mouse cursor is in the rect
@@ -121,182 +108,10 @@ def in_region(rectangle, pos):
         return False
 
 
-# Draw the player based on Vector2
-def draw_player():
-    # Draw player at Vector2 location
-    if can_dash:
-        pygame.draw.rect(screen, default_player_color, [plr_pos.x - 20, plr_pos.y - 20, 20, 20])
-    else:
-        pygame.draw.rect(screen, no_dash_player_color, [plr_pos.x - 20, plr_pos.y - 20, 20, 20])
-
-
-# Get player input and move the player horizontally
-def player_movement():
-    # Global Vector2s
-    global plr_velocity, plr_pos, plr_acceleration, direction
-    # Global booleans
-    global grounded, can_dash, dashing, jumping, trying_to_dash
-    # Global ints/floats
-    global time_since_last_jump, time_since_last_dash
-
-    plr_acceleration = pygame.Vector2(0, 0)
-    keys = pygame.key.get_pressed()
-
-    direction = pygame.Vector2(0, 0)
-
-    if keys[pygame.K_a]:
-        plr_acceleration.x = -acceleration
-    if keys[pygame.K_d]:
-        plr_acceleration.x = acceleration
-
-    if keys[pygame.K_w] and grounded:
-        # Jump
-        time_since_last_jump = pygame.time.get_ticks()
-        jumping = True
-        grounded = False
-        plr_velocity.y = -6
-
-    # Holding down jump makes it longer
-    if keys[pygame.K_w] and not grounded and jumping and pygame.time.get_ticks() - time_since_last_jump < 200:
-        plr_velocity.y = -6
-
-    trying_to_dash = False
-
-    if keys[pygame.K_LEFT]:
-        trying_to_dash = True
-        direction.x = 1
-    if keys[pygame.K_RIGHT]:
-        trying_to_dash = True
-        direction.x = -1
-    if keys[pygame.K_UP]:
-        trying_to_dash = True
-        direction.y = 1
-    if keys[pygame.K_DOWN]:
-        trying_to_dash = True
-        direction.y = -1
-
-    if trying_to_dash and can_dash:
-        # Dash
-        plr_velocity = pygame.Vector2(0, 0)
-        dashing = True
-        can_dash = False
-        grounded = False
-        time_since_last_dash = pygame.time.get_ticks()
-
-    # Holding down dash makes it longer
-    if trying_to_dash and not grounded and dashing and pygame.time.get_ticks() - time_since_last_dash < dash_length:
-        plr_velocity.x = -dash_power * direction.x * 2
-    else:
-        dashing = False
-
-    # Apply horizontal movement
-    plr_acceleration.x += plr_velocity.x * friction
-    plr_velocity += plr_acceleration
-    plr_pos.x += plr_velocity.x + 0.5 * plr_acceleration.x
-
-
-# Apply vertical gravity to the player character
-def apply_player_gravity():
-    global grounded
-    global plr_acceleration
-    global in_water
-    global dashing
-    global trying_to_dash
-
-    # Apply gravity if not on the ground
-    if not grounded and not dashing and not in_water:
-        plr_velocity.y += gravity_force
-        plr_pos.y += plr_velocity.y + gravity_acceleration * plr_acceleration.y
-    elif grounded and not dashing and not in_water:
-        plr_velocity.y = 0
-        plr_acceleration.y = 0
-    elif in_water and not dashing:
-        plr_velocity.y -= gravity_force * 0.5
-        plr_pos.y += plr_velocity.y + gravity_acceleration * plr_acceleration.y * 0.5
-
-    # Holding down dash makes it longer
-    if trying_to_dash and not grounded and dashing and pygame.time.get_ticks() - time_since_last_dash < dash_length:
-        plr_velocity.y = -dash_power * direction.y
-        plr_pos.y += plr_velocity.y
-    else:
-        dashing = False
-
-
 # Draw the water tiles
 def draw_water():
     for tile in water_tiles:
         pygame.draw.rect(screen, water_color, tile)
-
-
-# Check for horizontal collision
-def player_horizontal_collisions():
-    global grounded
-    global plr_pos
-    global plr_acceleration
-    global plr_velocity
-    plr_hitbox = pygame.Rect(plr_pos.x - 20, plr_pos.y - 20, 20, 20)
-
-    for tile in ground_tiles:
-        pygame.draw.rect(screen, (100, 100, 100), tile)
-        # Check horizontal collisions
-        if pygame.Rect.colliderect(plr_hitbox, tile):
-            if plr_velocity.x > 0:
-                plr_velocity.x = 0
-                plr_acceleration.x = 0
-                plr_pos.x = tile.left
-            if plr_velocity.x < 0:
-                plr_acceleration.x = 0
-                plr_velocity.x = 0
-                plr_pos.x = tile.right + 20
-
-
-# Check for vertical collision
-def player_vertical_collisions():
-    global grounded
-    global plr_pos
-    global plr_acceleration
-    global plr_velocity
-    plr_hitbox = pygame.Rect(plr_pos.x - 20, plr_pos.y - 20, 20, 20)
-
-    for tile in ground_tiles:
-        # Check vertical collisions
-        if pygame.Rect.colliderect(plr_hitbox, tile):
-            if plr_velocity.y > 0:
-                grounded = True
-                plr_acceleration.y = 0
-                plr_velocity.y = 0
-                plr_pos.y = tile.top
-            if plr_velocity.y < 0:
-                plr_velocity.y = 0
-                plr_acceleration.y = 0
-                plr_pos.y = tile.bottom + 20
-
-
-# Check what state the player is in
-def check_surroundings():
-    global grounded
-    global can_dash
-    global in_water
-    jump_hitbox = pygame.Rect(plr_pos.x - 20, plr_pos.y - 5, 20, 6)
-    any_collide = False
-    water_collide = False
-    for tile in ground_tiles:
-        if pygame.Rect.colliderect(jump_hitbox, tile):
-            any_collide = True
-    for piece in water_tiles:
-        if pygame.Rect.colliderect(jump_hitbox, piece):
-            water_collide = True
-    if any_collide:
-        grounded = True
-        can_dash = True
-    else:
-        grounded = False
-    if water_collide:
-        in_water = True
-    else:
-        in_water = False
-    if in_water:
-        can_dash = True
 
 
 # Normal runtime behaviour
@@ -308,19 +123,8 @@ while not edit_mode:
         if event.type == pygame.QUIT:
             quit()
 
-    # # Check if still dashing based on time
-    # if time_since_last_dash != 0 and pygame.time.get_ticks() - time_since_last_dash >= dash_cooldown:
-    #     dashing = False
-    #     time_since_last_dash = 0
+    player.update()
 
-    player_movement()
-    player_horizontal_collisions()
-    apply_player_gravity()
-    player_vertical_collisions()
-    draw_player()
-    check_surroundings()
-
-    # pygame.display.update(plr_pos.x - 40, plr_pos.y - 40, 60, 60)
     pygame.display.update()
 
     clock.tick(60)

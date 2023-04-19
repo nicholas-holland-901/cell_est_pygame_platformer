@@ -94,7 +94,7 @@ class Player:
 
         # Apply horizontal movement
         self.accel.x += self.vel.x * self.FRICTION
-        self.vel.x += self.accel
+        self.vel += self.accel
         self.pos.x += self.vel.x + 0.5 * self.accel.x
 
     def apply_gravity(self):
