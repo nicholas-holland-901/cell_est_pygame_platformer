@@ -1,6 +1,5 @@
 import pygame
 import player
-import runtime_editor
 from enum import Enum
 
 autoload = True
@@ -130,6 +129,97 @@ while not edit_mode:
 
     clock.tick(60)
 
+
+""" EDIT MODE """
+
+# Buttons to control the level editor
+def edit_buttons():
+    global tile_type
+    # Draw background for button area
+    pygame.draw.rect(screen, (50, 50, 50), [0, HEIGHT - 49, WIDTH, 49])
+
+    # Draw border on the top of the button area
+    pygame.draw.rect(screen, (255, 255, 255), [0, HEIGHT - 50, WIDTH, 1])
+
+    # Buttons
+    ground_tile_button = pygame.draw.rect(screen, (100, 100, 100), [10, HEIGHT - 40, 30, 30])
+    water_tile_button = pygame.draw.rect(screen, water_color, [50, HEIGHT - 40, 30, 30])
+    plr_spawn_point_button = pygame.draw.rect(screen, (255, 100, 100), [90, HEIGHT - 40, 30, 30])
+    change_tile_button = pygame.draw.rect(screen, (255, 255, 255), [130, HEIGHT - 40, 30, 30])
+
+    level_change_button = pygame.draw.rect(screen, (255, 255, 255), [920, HEIGHT - 40, 30, 30])
+
+    mouse_press = pygame.mouse.get_pressed()
+    if mouse_press[0]:
+        mouse_pos = pygame.mouse.get_pos()
+        if in_region(ground_tile_button, mouse_pos):
+            tile_type = TileType.ground
+        elif in_region(water_tile_button, mouse_pos):
+            tile_type = TileType.water
+        elif in_region(plr_spawn_point_button, mouse_pos):
+            tile_type = TileType.plr_spawn_pos
+        elif in_region(level_change_button, mouse_pos):
+            tile_type = TileType.room_transition
+
+
+# Generate room code that can be used to load to level and save the layout
+def generate_room_code():
+    room_save_code = str(room) + ":"
+    tile_code = ""
+    # Add the ground tiles already in the room
+    for tile in all_tiles:
+        tile_code = str(tile[0].x) + "/" + str(tile[0].y) + "&" + str(tile[1]) + "#"
+        room_save_code += tile_code
+    # Draw player spawn point
+    room_save_code += str(int(player_spawn_point.x)) + "/" + str(int(player_spawn_point.y)) + "&2#"
+
+    # Remove the hashtag from the end of the room code
+    room_save_code = room_save_code[:-1]
+
+    file = open("map_layout", 'r')
+    lines = file.readlines()
+
+    return room_save_code
+
+
+# Snap to tile grid
+def round_to_tile(mouse_pos):
+    x = 0
+    y = 0
+    # Get tile horizontally
+    for i in range(48):
+        if i * 20 <= mouse_pos[0] <= i * 20 + 20:
+            x = i * 20
+    # Get tile vertically
+    for i in range(27):
+        if i * 20 <= mouse_pos[1] <= i * 20 + 20:
+            y = i * 20
+    return x, y
+
+
+def save_layout():
+    # Save the current room
+    room_code = generate_room_code()
+    file = open("map_layout", 'r')
+    lines = file.readlines()
+    w = open("map_layout", "w")
+    exists = False
+    for line in lines:
+        if int(line[:1]) == room:
+            exists = True
+            i = lines.index(line)
+            lines[i] = room_code
+            if not i == len(lines) - 1:
+                lines[i] = room_code + "\n"
+            w.writelines(lines)
+    if not exists:
+        # Room didn't already exist
+        lines.append("\n" + room_code)
+        w.writelines(lines)
+    w.close()
+
+
+
 # Draw all tiles
 def draw_all_tiles():
     for tile in ground_tiles:
@@ -147,17 +237,17 @@ while edit_mode:
         # Close window on click
         if event.type == pygame.QUIT:
             # Save the current room before closing
-            runtime_editor.save_layout()
+            save_layout()
             quit()
 
     # Edit mode GUI
-    runtime_editor.edit_buttons()
+    edit_buttons()
 
     # Get mouse input
     mouse_press = pygame.mouse.get_pressed()
     if mouse_press[0] and pygame.mouse.get_pos()[1] < 540:
         # Place tile on left click
-        mouse = runtime_editor.round_to_tile(pygame.mouse.get_pos())
+        mouse = round_to_tile(pygame.mouse.get_pos())
         tile_rect = pygame.Rect(mouse[0], mouse[1], 20, 20)
         new_tile = (tile_rect, tile_type.value)
         if new_tile not in all_tiles:
@@ -174,7 +264,7 @@ while edit_mode:
                 change_tiles.append([tile_rect, next_room])
     if mouse_press[2] and pygame.mouse.get_pos()[1] < 540:
         # Delete tile on right click
-        mouse = runtime_editor.round_to_tile(pygame.mouse.get_pos())
+        mouse = round_to_tile(pygame.mouse.get_pos())
         tile_rect = pygame.Rect(mouse[0], mouse[1], 20, 20)
         new_tile = (tile_rect, tile_type.value)
         if new_tile in all_tiles:
