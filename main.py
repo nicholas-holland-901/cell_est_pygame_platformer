@@ -1,5 +1,6 @@
 import pygame
 import player
+import tile
 from enum import Enum
 
 autoload = True
@@ -23,6 +24,13 @@ clock = pygame.time.Clock()
 tile_color = (100, 100, 100)
 water_color = (75, 75, 255)
 
+tile_test = tile.Tile(10, 10, 10)
+
+testo = [tile_test]
+
+print("========")
+print(testo[0].pos)
+print("========")
 
 # Different types of tiles that can exist
 class TileType(Enum):
