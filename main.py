@@ -58,13 +58,10 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
 tiles = [pygame.Rect(0, HEIGHT - 50, WIDTH, 50), pygame.Rect(500, 400, 30, 30), pygame.Rect(300, 400, 30, 70)]
 
-
-def player_setup():
-    global player
-    player = player.Player(screen, 0, 0)
-    player.ground_tiles = ground_tiles
-    player.water_tiles = water_tiles
-
+# Player setup
+plr = player.Player(screen, 0, 0)
+plr.ground_tiles = ground_tiles
+plr.water_tiles = water_tiles
 
 if autoload:
     f = open("map_layout", "a")
@@ -96,8 +93,7 @@ if autoload:
                         # Player spawn point
                         player_spawn_point.x = x
                         player_spawn_point.y = y
-                        player.pos.x = x
-                        player.pos.y = y
+                        plr.set_pos(x, y)
 
 
 # Used for buttons to see if the mouse cursor is in the rect
@@ -123,14 +119,14 @@ while not edit_mode:
         if event.type == pygame.QUIT:
             quit()
 
-    player.update()
+    plr.update()
 
     pygame.display.update()
 
     clock.tick(60)
 
-
 """ EDIT MODE """
+
 
 # Buttons to control the level editor
 def edit_buttons():
@@ -217,7 +213,6 @@ def save_layout():
         lines.append("\n" + room_code)
         w.writelines(lines)
     w.close()
-
 
 
 # Draw all tiles

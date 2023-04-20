@@ -40,6 +40,9 @@ class Player:
         self.draw_player()
         self.check_surroundings()
 
+    def set_pos(self, x, y):
+        self.pos = pygame.Vector2(x, y)
+
     def move(self):
         self.accel = pygame.Vector2(0, 0)
         keys = pygame.key.get_pressed()
@@ -59,23 +62,22 @@ class Player:
             self.vel.y = -6
 
         # Holding down jump makes it longer
-        if keys[
-            pygame.K_w] and not self.grounded and self.jumping and pygame.time.get_ticks() - self.time_since_last_jump < 200:
+        if keys[pygame.K_w] and not self.grounded and self.jumping and pygame.time.get_ticks() - self.time_since_last_jump < 200:
             self.vel.y = -6
 
         self.trying_to_dash = False
 
         if keys[pygame.K_LEFT]:
-            trying_to_dash = True
+            self.trying_to_dash = True
             self.direction.x = 1
         if keys[pygame.K_RIGHT]:
-            trying_to_dash = True
+            self.trying_to_dash = True
             self.direction.x = -1
         if keys[pygame.K_UP]:
-            trying_to_dash = True
+            self.trying_to_dash = True
             self.direction.y = 1
         if keys[pygame.K_DOWN]:
-            trying_to_dash = True
+            self.trying_to_dash = True
             self.direction.y = -1
 
         if self.trying_to_dash and self.can_dash:
