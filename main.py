@@ -1,6 +1,5 @@
 import pygame
 import player
-import tile
 from enum import Enum
 
 autoload = True
@@ -24,13 +23,6 @@ clock = pygame.time.Clock()
 tile_color = (100, 100, 100)
 water_color = (75, 75, 255)
 
-tile_test = tile.Tile(10, 10, 10)
-
-testo = [tile_test]
-
-print("========")
-print(testo[0].pos)
-print("========")
 
 # Different types of tiles that can exist
 class TileType(Enum):
@@ -42,7 +34,8 @@ class TileType(Enum):
 
 # The current room being drawn on the screen
 room = 0
-next_room = 0
+# Up down left right
+next_room = [1, 0, 0, 0]
 
 tile_type = TileType.ground
 
@@ -66,10 +59,57 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
 tiles = [pygame.Rect(0, HEIGHT - 50, WIDTH, 50), pygame.Rect(500, 400, 30, 30), pygame.Rect(300, 400, 30, 70)]
 
-# Player setup
-plr = player.Player(screen, 0, 0)
-plr.ground_tiles = ground_tiles
-plr.water_tiles = water_tiles
+
+def player_setup():
+    global plr
+    plr = player.Player(screen, 0, 0)
+    plr.ground_tiles = ground_tiles
+    plr.water_tiles = water_tiles
+
+player_setup()
+
+def clear_room():
+    global ground_tiles, water_tiles, all_tiles
+
+    ground_tiles = []
+    water_tiles = []
+    all_tiles = []
+    player_setup()
+
+def load_room(room):
+    clear_room()
+    f = open("map_layout", "a")
+    f.close()
+    r = open("map_layout", "r")
+    data = r.readlines()
+    if data:
+        for line in data:
+            if int(line[:1]) == room:
+                data = data[data.index(line)]
+                data = data.split(":")
+                data = data[1].split("#")
+                for tile_data in data:
+                    values = tile_data.split("&")
+                    if "\n" in values[1]:
+                        values[1] = values[1][:1]
+                    position = values[0].split("/")
+                    x = int(position[0])
+                    y = int(position[1])
+                    all_tiles.append((pygame.Rect(x, y, 20, 20), values[1]))
+                    version = int(values[1])
+                    if version == 0:
+                        # Ground tile
+                        ground_tiles.append(pygame.Rect(x, y, 20, 20))
+                    elif version == 1:
+                        # Water tile
+                        water_tiles.append(pygame.Rect(x, y, 20, 20))
+                    elif version == 2:
+                        # Player spawn point
+                        player_spawn_point.x = x
+                        player_spawn_point.y = y
+                        plr.pos.x = x
+                        plr.pos.y = y
+
 
 if autoload:
     f = open("map_layout", "a")
@@ -101,7 +141,8 @@ if autoload:
                         # Player spawn point
                         player_spawn_point.x = x
                         player_spawn_point.y = y
-                        plr.set_pos(x, y)
+                        plr.pos.x = x
+                        plr.pos.y = y
 
 
 # Used for buttons to see if the mouse cursor is in the rect
@@ -129,12 +170,16 @@ while not edit_mode:
 
     plr.update()
 
+    if plr.pos.x > WIDTH + 15:
+        room = next_room[0]
+        load_room(room)
+
     pygame.display.update()
 
     clock.tick(60)
 
-""" EDIT MODE """
 
+""" EDIT MODE """
 
 # Buttons to control the level editor
 def edit_buttons():
@@ -149,7 +194,6 @@ def edit_buttons():
     ground_tile_button = pygame.draw.rect(screen, (100, 100, 100), [10, HEIGHT - 40, 30, 30])
     water_tile_button = pygame.draw.rect(screen, water_color, [50, HEIGHT - 40, 30, 30])
     plr_spawn_point_button = pygame.draw.rect(screen, (255, 100, 100), [90, HEIGHT - 40, 30, 30])
-    change_tile_button = pygame.draw.rect(screen, (255, 255, 255), [130, HEIGHT - 40, 30, 30])
 
     level_change_button = pygame.draw.rect(screen, (255, 255, 255), [920, HEIGHT - 40, 30, 30])
 
@@ -223,6 +267,7 @@ def save_layout():
     w.close()
 
 
+
 # Draw all tiles
 def draw_all_tiles():
     for tile in ground_tiles:
@@ -263,8 +308,6 @@ while edit_mode:
             elif tile_type.value == 2:
                 player_spawn_point.x = tile_rect.x
                 player_spawn_point.y = tile_rect.y
-            elif tile_type.value == 3:
-                change_tiles.append([tile_rect, next_room])
     if mouse_press[2] and pygame.mouse.get_pos()[1] < 540:
         # Delete tile on right click
         mouse = round_to_tile(pygame.mouse.get_pos())
@@ -278,8 +321,6 @@ while edit_mode:
                 water_tiles.remove(tile_rect)
             elif tile_type.value == 2:
                 all_tiles.remove(new_tile)
-            elif tile_type.value == 3:
-                change_tiles.remove([tile_rect, next_room])
 
     # Draw all the tiles
     draw_all_tiles()
