@@ -11,13 +11,15 @@ if edit_mode:
     WIDTH = 960
     HEIGHT = 590
 else:
-    # Window dimensions
+    # Window dimension
     WIDTH = 960
     HEIGHT = 540
 
 pygame.init()
 
 clock = pygame.time.Clock()
+
+first_load = True
 
 # Colors
 tile_color = (100, 100, 100)
@@ -35,7 +37,7 @@ class TileType(Enum):
 # The current room being drawn on the screen
 room = 0
 # Up down left right
-next_room = [1, 0, 0, 0]
+next_room = [0, 0, 0, 0]
 
 tile_type = TileType.ground
 
@@ -69,14 +71,18 @@ def player_setup():
 player_setup()
 
 def clear_room():
-    global ground_tiles, water_tiles, all_tiles
+    global ground_tiles, water_tiles, all_tiles, first_load
 
     ground_tiles = []
     water_tiles = []
     all_tiles = []
-    player_setup()
+    if first_load:
+        player_setup()
+
 
 def load_room(room):
+    global next_room, first_load
+
     clear_room()
     f = open("map_layout", "a")
     f.close()
@@ -84,11 +90,13 @@ def load_room(room):
     data = r.readlines()
     if data:
         for line in data:
-            if int(line[:1]) == room:
+            pieces = line.split(":")
+            if int(pieces[0]) == room:
+                # Convert tile data to tiles
                 data = data[data.index(line)]
                 data = data.split(":")
-                data = data[1].split("#")
-                for tile_data in data:
+                t_data = data[1].split("#")
+                for tile_data in t_data:
                     values = tile_data.split("&")
                     if "\n" in values[1]:
                         values[1] = values[1][:1]
@@ -107,42 +115,70 @@ def load_room(room):
                         # Player spawn point
                         player_spawn_point.x = x
                         player_spawn_point.y = y
-                        plr.pos.x = x
-                        plr.pos.y = y
+                        if first_load:
+                            plr.pos.x = x
+                            plr.pos.y = y
+                # Apply room stats
+                room_stats = data[2].split("/")
+                for i in range(len(room_stats)):
+                    next_room[i] = int(room_stats[i])
+    plr.ground_tiles = ground_tiles
+    plr.water_tiles = water_tiles
+    first_load = False
 
 
-if autoload:
+def transition_load(room, direction):
+    global next_room, first_load
+
     f = open("map_layout", "a")
     f.close()
     r = open("map_layout", "r")
     data = r.readlines()
     if data:
         for line in data:
-            if int(line[:1]) == room:
+            pieces = line.split(":")
+            if int(pieces[0]) == room:
+                # Convert tile data to tiles
                 data = data[data.index(line)]
                 data = data.split(":")
-                data = data[1].split("#")
-                for tile_data in data:
+                t_data = data[1].split("#")
+                for tile_data in t_data:
                     values = tile_data.split("&")
                     if "\n" in values[1]:
                         values[1] = values[1][:1]
                     position = values[0].split("/")
                     x = int(position[0])
                     y = int(position[1])
-                    all_tiles.append((pygame.Rect(x, y, 20, 20), values[1]))
+                    if direction == 0:
+                        all_tiles.append((pygame.Rect(x, y - HEIGHT, 20, 20), values[1]))
+                    elif direction == 1:
+                        all_tiles.append((pygame.Rect(x, y + HEIGHT, 20, 20), values[1]))
+                    elif direction == 2:
+                        all_tiles.append((pygame.Rect(x - WIDTH, y, 20, 20), values[1]))
+                    elif direction == 3:
+                        all_tiles.append((pygame.Rect(x + WIDTH, y, 20, 20), values[1]))
                     version = int(values[1])
                     if version == 0:
                         # Ground tile
-                        ground_tiles.append(pygame.Rect(x, y, 20, 20))
+                        ground_tiles.append(pygame.Rect(x + WIDTH, y, 20, 20))
                     elif version == 1:
                         # Water tile
-                        water_tiles.append(pygame.Rect(x, y, 20, 20))
+                        water_tiles.append(pygame.Rect(x + WIDTH, y, 20, 20))
                     elif version == 2:
                         # Player spawn point
                         player_spawn_point.x = x
                         player_spawn_point.y = y
-                        plr.pos.x = x
-                        plr.pos.y = y
+                        if first_load:
+                            plr.pos.x = x
+                            plr.pos.y = y
+                # Apply room stats
+                room_stats = data[2].split("/")
+                for i in range(len(room_stats)):
+                    next_room[i] = int(room_stats[i])
+
+
+if autoload:
+    load_room(room)
 
 
 # Used for buttons to see if the mouse cursor is in the rect
@@ -159,7 +195,51 @@ def draw_water():
         pygame.draw.rect(screen, water_color, tile)
 
 
-# Normal runtime behaviour
+def room_transition(direction):
+    # Up down left right = 0 1 2 3
+    # transition_speed = 5
+    size = 0
+    if direction == 0 or direction == 1:
+        size = HEIGHT
+    elif direction == 2 or direction == 3:
+        size = WIDTH
+    smooth = 0
+    distance = 0
+    while distance < size:  # for i in range(300):#int(round(size / transition_speed))):
+        screen.fill(screen_color)
+        for tile in all_tiles:
+            if direction == 0:
+                tile[0].y += smooth
+            elif direction == 1:
+                tile[0].y -= smooth
+            elif direction == 2:
+                tile[0].x += smooth
+            elif direction == 3:
+                tile[0].x -= smooth
+            pygame.draw.rect(screen, (100, 100, 100), tile[0])
+            pygame.draw.rect(screen, (255, 100, 100), [plr.pos.x - 20, plr.pos.y - 20, 20, 20])
+        if direction == 0:
+            plr.pos.y += smooth
+        elif direction == 1:
+            plr.pos.y -= smooth
+        elif direction == 2:
+            plr.pos.x += smooth
+        elif direction == 3:
+            plr.pos.x -= smooth
+        distance += smooth
+        if smooth < 10:
+            smooth += 0.05
+        plr.time_since_last_dash += 999
+        plr.can_dash = True
+        pygame.display.update()
+
+
+def draw_tiles():
+    for tile in ground_tiles:
+        pygame.draw.rect(screen, (100, 100, 100), tile)
+
+
+""" NORMAL RUNTIME BEHAVIOUR """
 while not edit_mode:
     screen.fill(screen_color)
     draw_water()
@@ -171,15 +251,34 @@ while not edit_mode:
     plr.update()
 
     if plr.pos.x > WIDTH + 15:
-        room = next_room[0]
+        room = next_room[3]
+        transition_load(room, 3)
+        room_transition(3)
         load_room(room)
+    if plr.pos.x < 0 + 5:
+        room = next_room[2]
+        transition_load(room, 2)
+        room_transition(2)
+        load_room(room)
+    if plr.pos.y < 0 - 5:
+        room = next_room[0]
+        transition_load(room, 0)
+        room_transition(0)
+        load_room(room)
+    if plr.pos.y > HEIGHT:
+        room = next_room[1]
+        transition_load(room, 1)
+        room_transition(1)
+        load_room(room)
+
+    draw_tiles()
 
     pygame.display.update()
 
     clock.tick(60)
 
-
 """ EDIT MODE """
+
 
 # Buttons to control the level editor
 def edit_buttons():
@@ -218,14 +317,16 @@ def generate_room_code():
     for tile in all_tiles:
         tile_code = str(tile[0].x) + "/" + str(tile[0].y) + "&" + str(tile[1]) + "#"
         room_save_code += tile_code
-    # Draw player spawn point
+
+    # Add player spawn point
     room_save_code += str(int(player_spawn_point.x)) + "/" + str(int(player_spawn_point.y)) + "&2#"
 
-    # Remove the hashtag from the end of the room code
+    # Remove the hashtag from the end of the room code section
     room_save_code = room_save_code[:-1]
 
-    file = open("map_layout", 'r')
-    lines = file.readlines()
+    room_stats_data = str(next_room[0]) + "/" + str(next_room[1]) + "/" + str(next_room[2]) + "/" + str(next_room[3])
+
+    room_save_code += ":" + room_stats_data
 
     return room_save_code
 
@@ -267,13 +368,21 @@ def save_layout():
     w.close()
 
 
-
 # Draw all tiles
 def draw_all_tiles():
     for tile in ground_tiles:
         pygame.draw.rect(screen, tile_color, tile)
     for tile in water_tiles:
         pygame.draw.rect(screen, water_color, tile)
+
+
+def edit_level_stats():
+    choice = input("1. Set Room Transitions\n")
+    if choice == "1":
+        side = int(input("1. Up\n2. Down\n3. Left\n4. Right\n"))
+        the_room = int(input("Which room should it transition to?\n"))
+        next_room[side - 1] = the_room
+        print("Successfully changed it!")
 
 
 # Loop for when editing
@@ -290,6 +399,11 @@ while edit_mode:
 
     # Edit mode GUI
     edit_buttons()
+
+    keys = pygame.key.get_pressed()
+
+    if keys[pygame.K_e]:
+        edit_level_stats()
 
     # Get mouse input
     mouse_press = pygame.mouse.get_pressed()
