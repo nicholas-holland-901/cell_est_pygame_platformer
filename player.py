@@ -1,6 +1,5 @@
 import pygame
 
-
 class Player:
     # Constants
     WIDTH = 20
