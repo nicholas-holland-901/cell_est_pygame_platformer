@@ -1,4 +1,3 @@
-import pygame
 
 # Generate room code that can be used to load to level and save the layout
 def generate_room_code(current_room):
@@ -10,7 +9,12 @@ def generate_room_code(current_room):
     for tile in current_room.water_tiles:
         tile_code = str(tile.x) + "/" + str(tile.y) + "&1#"
         room_save_code += tile_code
-
+    for spinner in current_room.spinners:
+        tile_code = str(spinner.x) + "/" + str(spinner.y) + "&3#"
+        room_save_code += tile_code
+    for spike in current_room.spikes:
+        tile_code = str(spike.x) + "/" + str(spike.y) + "&4#"
+        room_save_code += tile_code
     # Add player spawn point
     room_save_code += str(int(current_room.plr_spawn_point.x)) + "/" + str(int(current_room.plr_spawn_point.y)) + "&2#"
     # Remove the hashtag from the end of the room code section

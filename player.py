@@ -36,6 +36,8 @@ class Player:
         # Tiles
         self.ground_tiles = []
         self.water_tiles = []
+        self.spikes = []
+        self.spinners = []
         # Timers
         self.time_since_last_jump = 0
         self.time_since_last_dash = 0
@@ -43,7 +45,7 @@ class Player:
         # Player Body
         self.rect = pygame.Rect(self.pos.x, self.pos.y, self.WIDTH, self.HEIGHT)
 
-    def update(self):
+    def update(self, window):
         # Constantly move player and update position
         if self.can_move:
             # Move player horizontally and check horizontal collisions
@@ -53,7 +55,7 @@ class Player:
             self.apply_gravity()
             self.player_vertical_collisions()
             # Draw player and check state
-            self.draw_player()
+            self.draw_player(window)
             self.check_surroundings()
 
     def set_pos(self, x, y):
@@ -139,10 +141,15 @@ class Player:
             self.vel.y = 0
             self.accel.y = 0
         elif self.in_water and not self.dashing:
-            # Gravity while in water
-            self.vel.y -= self.GRAVITY_FORCE * 0.5
-            self.pos.y += self.vel.y + self.GRAVITY_ACCELERATION * self.accel.y * 0.5
-
+            # Gravity while in water, slowly float
+            if self.vel.y < 1:
+                # Normal water force
+                self.vel.y -= self.GRAVITY_FORCE * 0.07
+                self.pos.y += self.vel.y + self.GRAVITY_ACCELERATION * self.accel.y * 0.5
+            else:
+                # Increase force of water if falling kinda fast
+                self.vel.y -= self.GRAVITY_FORCE
+                self.pos.y += self.vel.y + self.GRAVITY_ACCELERATION * self.accel.y * 0.5
         # Holding down dash makes it longer
         if self.trying_to_dash and not self.grounded and self.dashing and pygame.time.get_ticks() - self.time_since_last_dash < self.DASH_LENGTH:
             self.vel.y = self.DASH_POWER
@@ -218,9 +225,10 @@ class Player:
         if self.in_water:
             self.can_dash = True
 
-    def draw_player(self):
+    def draw_player(self, window):
         # Draw player at Vector2 location
         if self.can_dash:
             pygame.draw.rect(self.screen, self.DEFAULT_PLAYER_COLOR, [self.pos.x - 20, self.pos.y - 20, 20, 20])
         else:
             pygame.draw.rect(self.screen, self.NO_DASH_PLAYER_COLOR, [self.pos.x - 20, self.pos.y - 20, 20, 20])
+            pass
