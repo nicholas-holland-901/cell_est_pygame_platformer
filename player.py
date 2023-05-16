@@ -42,6 +42,7 @@ class Player:
         self.time_since_last_jump = 0
         self.time_since_last_dash = 0
         self.time_since_last_walljump = 0
+        self.plr_hitbox = pygame.Rect(self.pos.x - 20, self.pos.y - 20, 20, 20)
         # Player Body
         self.rect = pygame.Rect(self.pos.x, self.pos.y, self.WIDTH, self.HEIGHT)
 
@@ -158,20 +159,23 @@ class Player:
             self.dashing = False
 
         if self.walljumping:
+            # Move player up when walljumping
             self.vel.y = -6
             self.pos.y += self.vel.y
 
     def player_horizontal_collisions(self):
-        plr_hitbox = pygame.Rect(self.pos.x - 20, self.pos.y - 20, 20, 20)
+        self.plr_hitbox = pygame.Rect(self.pos.x - 20, self.pos.y - 20, 20, 20)
 
         for tile in self.ground_tiles:
             # Check horizontal collisions
-            if pygame.Rect.colliderect(plr_hitbox, tile):
+            if pygame.Rect.colliderect(self.plr_hitbox, tile):
                 if self.vel.x > 0:
+                    # Hitting a wall to the right
                     self.vel.x = 0
                     self.accel.x = 0
                     self.pos.x = tile.left
                 if self.vel.x < 0:
+                    # Hitting a wall to the left
                     self.accel.x = 0
                     self.vel.x = 0
                     self.pos.x = tile.right + 20
@@ -183,11 +187,13 @@ class Player:
             # Check vertical collisions
             if pygame.Rect.colliderect(plr_hitbox, tile):
                 if self.vel.y > 0:
-                    grounded = True
+                    # Hit the ground
+                    self.grounded = True
                     self.accel.y = 0
                     self.vel.y = 0
                     self.pos.y = tile.top
                 if self.vel.y < 0:
+                    # Hit the ceiling
                     self.vel.y = 0
                     self.accel.y = 0
                     self.pos.y = tile.bottom + 20
@@ -231,4 +237,3 @@ class Player:
             pygame.draw.rect(self.screen, self.DEFAULT_PLAYER_COLOR, [self.pos.x - 20, self.pos.y - 20, 20, 20])
         else:
             pygame.draw.rect(self.screen, self.NO_DASH_PLAYER_COLOR, [self.pos.x - 20, self.pos.y - 20, 20, 20])
-            pass

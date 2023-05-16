@@ -1,4 +1,5 @@
 import os
+import sys
 from enum import Enum
 
 import pygame
@@ -15,6 +16,8 @@ all_tiles = []
 # Load Images
 gray_tile_img = pygame.transform.scale(pygame.image.load(os.path.join("gray_tile.png")), (20, 20))
 bg_img = pygame.transform.scale(pygame.image.load(os.path.join("background.png")), (960, 540))
+hair_img = pygame.transform.scale(pygame.image.load(os.path.join("hair.png")), (300, 100))
+end_screen_img = pygame.transform.scale(pygame.image.load(os.path.join("endscreen.png")), (960, 540))
 
 if edit_mode:
     # Window dimensions
@@ -38,7 +41,6 @@ running = False
 tile_color = (100, 100, 100)
 water_color = (75, 75, 255)
 
-
 # Different types of tiles that can exist
 class TileType(Enum):
     ground = 0
@@ -59,6 +61,7 @@ ground_tiles = []
 water_tiles = []
 change_tiles = []
 
+# For the room transitions
 next_room_tiles = []
 next_room_water_tiles = []
 next_room_spinners = []
@@ -78,19 +81,23 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 room_class.gray_tile_img = pygame.transform.scale(pygame.image.load(os.path.join("gray_tile.png")), (20, 20)).convert()
 
 # Optimization
-# screen.set_alpha(None)
+screen.set_alpha(None)
 pygame.event.set_allowed([pygame.QUIT, pygame.KEYDOWN, pygame.KEYUP])
 menu = main_menu.Menu(small_font)
 tiles = [pygame.Rect(0, HEIGHT - 50, WIDTH, 50), pygame.Rect(500, 400, 30, 30), pygame.Rect(300, 400, 30, 70)]
 
 def player_setup():
     global plr
+    # Set all of the collisions for the player (where all the stuff is in the level)
     plr = player.Player(screen, current_room.plr_spawn_point.x, current_room.plr_spawn_point.y)
     plr.ground_tiles = ground_tiles
     plr.water_tiles = water_tiles
+    plr.spinners = current_room.spinners
+    plr.spikes = current_room.spikes
 
 plr = player.Player(screen, 0, 0)
 player_setup()
+end_screen = False
 
 while not running:
     for event in pygame.event.get():
@@ -108,6 +115,7 @@ def clear_room():
     global ground_tiles, water_tiles, all_tiles, first_load
     global next_room_tiles, next_room_water_tiles, next_room_spinners, next_room_spikes
 
+    # Reset all data regarding where tiles are
     ground_tiles = []
     water_tiles = []
     all_tiles = []
@@ -122,6 +130,7 @@ def clear_room():
 def load_room(room):
     global next_room, first_load, current_room
 
+    # Read the 'map_layout' text file to load a level
     clear_room()
     current_room = room_class.Room(room)
     f = open("map_layout", "a")
@@ -143,7 +152,6 @@ def load_room(room):
                     position = values[0].split("/")
                     x = int(position[0])
                     y = int(position[1])
-                    # all_tiles.append((pygame.Rect(x, y, 20, 20), values[1]))
                     version = int(values[1])
                     if version == 0:
                         # Ground tile
@@ -159,6 +167,7 @@ def load_room(room):
                             plr.pos.x = x + 20
                             plr.pos.y = y + 20
                     elif version == 3:
+                        # Spinner tile
                         current_room.spinners.append(pygame.Rect(x, y, 20, 20))
                     elif version == 4:
                         current_room.spikes.append(pygame.Rect(x, y, 20, 20))
@@ -174,6 +183,7 @@ def load_room(room):
 def transition_load(room, direction):
     global next_room, first_load, current_room, next_room_tiles, next_room_water_tiles, next_room_spinners, next_room_spikes
 
+    # Read the 'map_layout' text file to load a level
     f = open("map_layout", "a")
     f.close()
     r = open("map_layout", "r")
@@ -247,6 +257,7 @@ def room_transition(direction):
     # Add current room to new screen thing
     first_room.blit(bg_img, (0, 0))
     second_room.blit(bg_img, (0, 0))
+    # Create new level images for current and next level and load both to make transition animation
     for tile in current_room.ground_tiles:
         first_room.blit(room_class.gray_tile_img, tile)
     for tile in current_room.water_tiles:
@@ -270,7 +281,7 @@ def room_transition(direction):
         size = WIDTH
     smooth = 2
     distance = 0
-    while distance < size:  # for i in range(300):#int(round(size / transition_speed))):
+    while distance < size:
         screen.fill(screen_color)
         if direction == 0:
             y += smooth
@@ -303,68 +314,101 @@ def room_transition(direction):
         plr.can_dash = True
         pygame.display.update()
 
-
-""" NORMAL RUNTIME BEHAVIOUR """
-while not edit_mode and running:
-    screen.fill(screen_color)
-
-    current_room.draw(screen)
-    # for tile in ground_tiles:
-    #     screen.blits()
-    # blit_list = []
-    # for tile in ground_tiles:
-    #     blit_list.append(gray_tile_img, tile, 1)
-    # pygame.Surface.blits(blit_list)
-
+def draw_end_screen():
+    global running, end_screen
+    # Once the game is over
     for event in pygame.event.get():
         # Close window on click
         if event.type == pygame.QUIT:
             quit()
-
-    plr.update(screen)
-
-    # Check if player is off the screen
-    if plr.pos.x > WIDTH + 15:
-        # Right
-        room = current_room.next_rooms[3]
-        transition_load(room, 3)
-        room_transition(3)
-        load_room(room)
-    elif plr.pos.x < 0 + 5:
-        # Left
-        room = current_room.next_rooms[2]
-        transition_load(room, 2)
-        room_transition(2)
-        load_room(room)
-    elif plr.pos.y < 0 - 5:
-        # Up
-        room = current_room.next_rooms[0]
-        transition_load(room, 0)
-        room_transition(0)
-        load_room(room)
-    elif plr.pos.y > HEIGHT:
-        # Down
-        if current_room.next_rooms[1] >= 0:
-            print("1")
-            room = current_room.next_rooms[1]
-            transition_load(room, 1)
-            room_transition(1)
-            load_room(room)
-        else:
-            # Kill side
-            player_setup()
-            plr.ground_tiles = current_room.ground_tiles
-            plr.water_tiles = current_room.water_tiles
-
-    # print(round(clock.get_fps()))
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            # Restart the game
+            reset_player()
+            clear_room()
+            load_room(0)
+            reset_player()
+            end_screen = False
+    screen.blit(end_screen_img, (0, 0))
+    screen.blit(small_font.render("(click to play again)", True, "white"), (350, 450))
     pygame.display.update()
 
-    clock.tick(60)
+
+def reset_player():
+    # Reset player on death back to spawn pos
+    player_setup()
+    plr.ground_tiles = current_room.ground_tiles
+    plr.water_tiles = current_room.water_tiles
+    plr.spinners = current_room.spinners
+    plr.spikes = current_room.spikes
+
+
+""" NORMAL RUNTIME BEHAVIOUR """
+while not edit_mode and running:
+    if not end_screen:
+        # Draw the current room and stuff
+        screen.fill(screen_color)
+        current_room.draw(screen)
+
+        for event in pygame.event.get():
+            # Close window on click
+            if event.type == pygame.QUIT:
+                quit()
+
+        for spinner in current_room.spinners:
+            if pygame.Rect.colliderect(plr.plr_hitbox, spinner):
+                # Kill player when touching a spinner
+                reset_player()
+
+        if current_room.room_number == 10:
+            # Draw the final hair in the final room and go to end screen on touch
+            screen.blit(hair_img, (300, 200))
+            screen.blit(small_font.render("Woah!!! I found my hair! I'm done. Game Win.", True, "white"), (240, 300))
+            screen.blit(small_font.render("(touch the hair)", True, "white"), (320, 340))
+            if pygame.Rect.colliderect(plr.plr_hitbox, pygame.Rect([300, 200, hair_img.get_width(), hair_img.get_height()])):
+                end_screen = True
+
+        plr.update(screen)
+
+        # Check if player is off the screen
+        if plr.pos.x > WIDTH + 15:
+            # Right
+            room = current_room.next_rooms[3]
+            transition_load(room, 3)
+            room_transition(3)
+            load_room(room)
+        elif plr.pos.x < 0 + 5:
+            # Left
+            room = current_room.next_rooms[2]
+            transition_load(room, 2)
+            room_transition(2)
+            load_room(room)
+        elif plr.pos.y < 0 - 5:
+            # Up
+            room = current_room.next_rooms[0]
+            transition_load(room, 0)
+            room_transition(0)
+            load_room(room)
+        elif plr.pos.y > HEIGHT:
+            # Down
+            if current_room.next_rooms[1] >= 0:
+                room = current_room.next_rooms[1]
+                transition_load(room, 1)
+                room_transition(1)
+                load_room(room)
+            else:
+                # Kill side
+                reset_player()
+
+        # print(round(clock.get_fps()))
+        pygame.display.update()
+
+        clock.tick(60)
+    else:
+        draw_end_screen()
+
+
 
 """ EDIT MODE """
-
-
-# Buttons to control the level editor
 def edit_buttons():
     global tile_type
     # Draw background for button area
@@ -373,7 +417,7 @@ def edit_buttons():
     # Draw border on the top of the button area
     pygame.draw.rect(screen, (255, 255, 255), [0, HEIGHT - 50, WIDTH, 1])
 
-    # Buttons
+    # Buttons rects to control the level editor
     ground_tile_button = pygame.draw.rect(screen, (100, 100, 100), [10, HEIGHT - 40, 30, 30])
     water_tile_button = pygame.draw.rect(screen, water_color, [50, HEIGHT - 40, 30, 30])
     plr_spawn_point_button = pygame.draw.rect(screen, (255, 100, 100), [90, HEIGHT - 40, 30, 30])
@@ -384,29 +428,34 @@ def edit_buttons():
     if mouse_press[0]:
         mouse_pos = pygame.mouse.get_pos()
         if in_region(ground_tile_button, mouse_pos):
+            # Change current tile type to ground
             tile_type = TileType.ground
         elif in_region(water_tile_button, mouse_pos):
+            # Change current tile type to water
             tile_type = TileType.water
         elif in_region(plr_spawn_point_button, mouse_pos):
+            # Change current tile type to player spawn point
             tile_type = TileType.plr_spawn_pos
         elif in_region(spinner_button, mouse_pos):
+            # Change current tile type to spinners
             tile_type = TileType.spinners
         elif in_region(spike_button, mouse_pos):
             tile_type = TileType.spikes
 
 
 def edit_level_stats():
+    global current_room
+    # Change what borders transition to which room
     choice = input("1. Set Room Transitions\n")
     if choice == "1":
         side = int(input("1. Up\n2. Down\n3. Left\n4. Right\n"))
         the_room = int(input("Which room should it transition to?\n"))
-        next_room[side - 1] = the_room
+        current_room.next_rooms[side - 1] = the_room
         print("Successfully changed it!")
 
 
 # Loop for when editing
 while edit_mode:
-
     pygame.draw.rect(screen, (255, 100, 100), [current_room.plr_spawn_point.x, current_room.plr_spawn_point.y, 20, 20])
     for event in pygame.event.get():
         # Close window on click
@@ -434,15 +483,20 @@ while edit_mode:
         mouse = room_editor_functions.round_to_tile(pygame.mouse.get_pos())
         tile_rect = pygame.Rect(mouse[0], mouse[1], 20, 20)
         if tile_type.value == 0 and tile_rect not in current_room.ground_tiles:
+            # Place a ground tile
             current_room.ground_tiles.append(tile_rect)
         elif tile_type.value == 1 and tile_rect not in current_room.water_tiles:
+            # Place a water tile
             current_room.water_tiles.append(tile_rect)
         elif tile_type.value == 2:
+            # Place a player spawn point
             current_room.plr_spawn_point.x = tile_rect.x
             current_room.plr_spawn_point.y = tile_rect.y
         elif tile_type.value == 3 and tile_rect not in current_room.spinners:
+            # Place a spinner
             current_room.spinners.append(tile_rect)
         elif tile_type.value == 4 and tile_rect not in current_room.spikes:
+            # Place a spike
             current_room.spikes.append(tile_rect)
     if mouse_press[2] and pygame.mouse.get_pos()[1] < 540:
         # Delete tile on right click
@@ -450,12 +504,16 @@ while edit_mode:
         tile_rect = pygame.Rect(mouse[0], mouse[1], 20, 20)
         new_tile = (tile_rect, tile_type.value)
         if tile_rect in current_room.ground_tiles:
+            # Delete the ground tile
             current_room.ground_tiles.remove(tile_rect)
         elif tile_rect in current_room.water_tiles:
+            # Delete the water tile
             current_room.water_tiles.remove(tile_rect)
         elif tile_rect in current_room.spinners:
+            # Delete the spinner tile
             current_room.spinners.remove(tile_rect)
         elif tile_rect in current_room.spikes:
             current_room.spikes.remove(tile_rect)
 
     pygame.display.update()
+
