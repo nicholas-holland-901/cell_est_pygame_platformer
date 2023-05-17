@@ -16,8 +16,7 @@ all_tiles = []
 # Load Images
 gray_tile_img = pygame.transform.scale(pygame.image.load(os.path.join("gray_tile.png")), (20, 20))
 bg_img = pygame.transform.scale(pygame.image.load(os.path.join("background.png")), (960, 540))
-hair_img = pygame.transform.scale(pygame.image.load(os.path.join("hair.png")), (300, 100))
-end_screen_img = pygame.transform.scale(pygame.image.load(os.path.join("endscreen.png")), (960, 540))
+win_ball_img = pygame.transform.scale(pygame.image.load(os.path.join("win_ball.png")), (150, 165))
 
 if edit_mode:
     # Window dimensions
@@ -37,6 +36,8 @@ first_load = True
 
 running = False
 
+player_lives = 5
+
 # Colors
 tile_color = (100, 100, 100)
 water_color = (75, 75, 255)
@@ -47,7 +48,6 @@ class TileType(Enum):
     water = 1
     plr_spawn_pos = 2
     spinners = 3
-    spikes = 4
 
 
 # The current room being drawn on the screen
@@ -65,7 +65,6 @@ change_tiles = []
 next_room_tiles = []
 next_room_water_tiles = []
 next_room_spinners = []
-next_room_spikes = []
 
 # Window title
 pygame.display.set_caption("Celeste")
@@ -88,12 +87,11 @@ tiles = [pygame.Rect(0, HEIGHT - 50, WIDTH, 50), pygame.Rect(500, 400, 30, 30), 
 
 def player_setup():
     global plr
-    # Set all of the collisions for the player (where all the stuff is in the level)
+    # Set all the collisions for the player (where all the stuff is in the level)
     plr = player.Player(screen, current_room.plr_spawn_point.x, current_room.plr_spawn_point.y)
     plr.ground_tiles = ground_tiles
     plr.water_tiles = water_tiles
     plr.spinners = current_room.spinners
-    plr.spikes = current_room.spikes
 
 plr = player.Player(screen, 0, 0)
 player_setup()
@@ -113,7 +111,7 @@ while not running:
 
 def clear_room():
     global ground_tiles, water_tiles, all_tiles, first_load
-    global next_room_tiles, next_room_water_tiles, next_room_spinners, next_room_spikes
+    global next_room_tiles, next_room_water_tiles, next_room_spinners
 
     # Reset all data regarding where tiles are
     ground_tiles = []
@@ -122,7 +120,6 @@ def clear_room():
     next_room_tiles = []
     next_room_water_tiles = []
     next_room_spinners = []
-    next_room_spikes = []
     if first_load:
         player_setup()
 
@@ -169,8 +166,6 @@ def load_room(room):
                     elif version == 3:
                         # Spinner tile
                         current_room.spinners.append(pygame.Rect(x, y, 20, 20))
-                    elif version == 4:
-                        current_room.spikes.append(pygame.Rect(x, y, 20, 20))
                 # Apply room stats
                 room_stats = data[2].split("/")
                 for i in range(len(room_stats)):
@@ -181,7 +176,7 @@ def load_room(room):
     current_room.generate_room_image()
 
 def transition_load(room, direction):
-    global next_room, first_load, current_room, next_room_tiles, next_room_water_tiles, next_room_spinners, next_room_spikes
+    global next_room, first_load, current_room, next_room_tiles, next_room_water_tiles, next_room_spinners
 
     # Read the 'map_layout' text file to load a level
     f = open("map_layout", "a")
@@ -227,8 +222,6 @@ def transition_load(room, direction):
                             plr.pos.y = y
                     elif version == 3:
                         next_room_spinners.append(pygame.Rect(x, y, 20, 20))
-                    elif version == 4:
-                        next_room_spikes.append(pygame.Rect(x, y, 20, 20))
                 # Apply room stats
                 room_stats = data[2].split("/")
                 for i in range(len(room_stats)):
@@ -248,7 +241,7 @@ def in_region(rectangle, pos):
 
 
 def room_transition(direction):
-    global next_room_tiles
+    global next_room_tiles, player_lives
     # Up down left right = 0 1 2 3
     # transition_speed = 5
     first_room = pygame.Surface((960, 540))
@@ -262,18 +255,14 @@ def room_transition(direction):
         first_room.blit(room_class.gray_tile_img, tile)
     for tile in current_room.water_tiles:
         first_room.blit(room_class.water_tile_img, tile)
-    for spike in current_room.spikes:
-        first_room.blit(room_class.spike_img, spike)
     for spinner in current_room.spinners:
-        first_room.blit(room_class.spinner_img, spinner)
+        first_room.blit(room_class.spinner_img, pygame.Vector2(spinner.x - 5, spinner.y - 5))
     for tile in next_room_tiles:
         second_room.blit(room_class.gray_tile_img, tile)
     for tile in next_room_water_tiles:
         second_room.blit(room_class.water_tile_img, tile)
-    for spike in next_room_spikes:
-        second_room.blit(room_class.spike_img, spike)
     for spinner in next_room_spinners:
-        second_room.blit(room_class.spinner_img, spinner)
+        second_room.blit(room_class.spinner_img, pygame.Vector2(spinner.x - 5, spinner.y - 5))
     size = 0
     if direction == 0 or direction == 1:
         size = HEIGHT
@@ -312,10 +301,11 @@ def room_transition(direction):
             smooth -= 0.03
         plr.time_since_last_dash += 999
         plr.can_dash = True
+        screen.blit(small_font.render("Lives:" + str(player_lives), True, "white"), (0, 0))
         pygame.display.update()
 
 def draw_end_screen():
-    global running, end_screen
+    global running, end_screen, player_lives
     # Once the game is over
     for event in pygame.event.get():
         # Close window on click
@@ -327,19 +317,27 @@ def draw_end_screen():
             clear_room()
             load_room(0)
             reset_player()
+            player_lives = 5
             end_screen = False
-    screen.blit(end_screen_img, (0, 0))
-    screen.blit(small_font.render("(click to play again)", True, "white"), (350, 450))
+    screen.fill("black")
+    if player_lives >= 0:
+        screen.blit(small_font.render("You're done.", True, "white"), (250, 250))
+    else:
+        screen.blit(small_font.render("You're dead.", True, "white"), (250, 250))
+    screen.blit(small_font.render("(click to play again.)", True, "white"), (350, 450))
     pygame.display.update()
 
 
 def reset_player():
+    global player_lives, end_screen
     # Reset player on death back to spawn pos
+    player_lives -= 1
     player_setup()
     plr.ground_tiles = current_room.ground_tiles
     plr.water_tiles = current_room.water_tiles
     plr.spinners = current_room.spinners
-    plr.spikes = current_room.spikes
+    if player_lives < 0:
+        end_screen = True
 
 
 """ NORMAL RUNTIME BEHAVIOUR """
@@ -360,12 +358,15 @@ while not edit_mode and running:
                 reset_player()
 
         if current_room.room_number == 10:
-            # Draw the final hair in the final room and go to end screen on touch
-            screen.blit(hair_img, (300, 200))
-            screen.blit(small_font.render("Woah!!! I found my hair! I'm done. Game Win.", True, "white"), (240, 300))
-            screen.blit(small_font.render("(touch the hair)", True, "white"), (320, 340))
-            if pygame.Rect.colliderect(plr.plr_hitbox, pygame.Rect([300, 200, hair_img.get_width(), hair_img.get_height()])):
+            # Draw the final win ball in the final room and go to end screen on touch
+            screen.blit(win_ball_img, (300, 200))
+            screen.blit(small_font.render("I'm done. Touch the object.", True, "white"), (480, 300))
+            if pygame.Rect.colliderect(plr.plr_hitbox, pygame.Rect([300, 200, win_ball_img.get_width(), win_ball_img.get_height()])):
                 end_screen = True
+        elif current_room.room_number == 0:
+            # Draw tutorial text in the first level
+            screen.blit(small_font.render("A W D, Space for dash up", True, "white"), (480, 60))
+
 
         plr.update(screen)
 
@@ -397,9 +398,13 @@ while not edit_mode and running:
                 load_room(room)
             else:
                 # Kill side
+                print("Fell into a pit!")
                 reset_player()
 
         # print(round(clock.get_fps()))
+        if player_lives >= 0:
+            screen.blit(small_font.render("Lives:" + str(player_lives), True, "white"), (0, 0))
+        
         pygame.display.update()
 
         clock.tick(60)
@@ -422,7 +427,6 @@ def edit_buttons():
     water_tile_button = pygame.draw.rect(screen, water_color, [50, HEIGHT - 40, 30, 30])
     plr_spawn_point_button = pygame.draw.rect(screen, (255, 100, 100), [90, HEIGHT - 40, 30, 30])
     spinner_button = pygame.draw.rect(screen, (0, 0, 200), [130, HEIGHT - 40, 30, 30])
-    spike_button = pygame.draw.rect(screen, (15, 255, 10), [170, HEIGHT - 40, 30, 30])
 
     mouse_press = pygame.mouse.get_pressed()
     if mouse_press[0]:
@@ -439,8 +443,6 @@ def edit_buttons():
         elif in_region(spinner_button, mouse_pos):
             # Change current tile type to spinners
             tile_type = TileType.spinners
-        elif in_region(spike_button, mouse_pos):
-            tile_type = TileType.spikes
 
 
 def edit_level_stats():
@@ -495,9 +497,6 @@ while edit_mode:
         elif tile_type.value == 3 and tile_rect not in current_room.spinners:
             # Place a spinner
             current_room.spinners.append(tile_rect)
-        elif tile_type.value == 4 and tile_rect not in current_room.spikes:
-            # Place a spike
-            current_room.spikes.append(tile_rect)
     if mouse_press[2] and pygame.mouse.get_pos()[1] < 540:
         # Delete tile on right click
         mouse = room_editor_functions.round_to_tile(pygame.mouse.get_pos())
@@ -512,8 +511,6 @@ while edit_mode:
         elif tile_rect in current_room.spinners:
             # Delete the spinner tile
             current_room.spinners.remove(tile_rect)
-        elif tile_rect in current_room.spikes:
-            current_room.spikes.remove(tile_rect)
 
     pygame.display.update()
 

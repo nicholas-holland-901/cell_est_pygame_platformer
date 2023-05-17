@@ -12,9 +12,6 @@ def generate_room_code(current_room):
     for spinner in current_room.spinners:
         tile_code = str(spinner.x) + "/" + str(spinner.y) + "&3#"
         room_save_code += tile_code
-    for spike in current_room.spikes:
-        tile_code = str(spike.x) + "/" + str(spike.y) + "&4#"
-        room_save_code += tile_code
     # Add player spawn point
     room_save_code += str(int(current_room.plr_spawn_point.x)) + "/" + str(int(current_room.plr_spawn_point.y)) + "&2#"
     # Remove the hashtag from the end of the room code section
@@ -31,7 +28,7 @@ def save_layout(current_room):
     w = open("map_layout", "w")
     exists = False
     for line in lines:
-        if int(line[:1]) == current_room.room_number:
+        if int(line.split(":")[0]) == current_room.room_number:
             exists = True
             i = lines.index(line)
             lines[i] = room_code

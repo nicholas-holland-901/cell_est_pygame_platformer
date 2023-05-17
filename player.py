@@ -36,7 +36,6 @@ class Player:
         # Tiles
         self.ground_tiles = []
         self.water_tiles = []
-        self.spikes = []
         self.spinners = []
         # Timers
         self.time_since_last_jump = 0

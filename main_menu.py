@@ -19,6 +19,7 @@ class Menu:
         self.visible = False
 
     def CheckButton(self, rect):
+        # Check if mouse is on top of a button's rect
         if rect[0] < pygame.mouse.get_pos()[0] < rect[0] + rect[2] and rect[1] < pygame.mouse.get_pos()[1] < rect[1] + rect[3]:
             return True
 
@@ -32,7 +33,9 @@ class Menu:
         return False
 
     def Draw(self, window):
+        # Draw the main menu
         window.blit(title, (0, 0))
+        # Determine if mouse is on button, and if it is, draw the darker button
         if self.CheckButton([360, 290, 216, 50]):
             window.blit(self.button_dark, (360, 290))
         else:
@@ -41,5 +44,6 @@ class Menu:
             window.blit(self.button_dark, (360, 390))
         else:
             window.blit(self.button_light, (360, 390))
+        # Draw the text on the screen
         window.blit(self.font.render("Play", True, "white"), (440, 295))
         window.blit(self.font.render("Exit", True, "white"), (440, 395))
