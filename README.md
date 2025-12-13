@@ -1,5 +1,5 @@
 ﻿# cell_est_pygame_platformer
-Platformer I made in high school using PyGame!!
+Platformer I made in high school using PyGame based on the videogame Celeste!!
 
 <img width="500" height="538" alt="pygame_image_1" src="https://github.com/user-attachments/assets/9a362da3-5c97-4efb-b182-8e48dab04c04" />
 
@@ -10,5 +10,6 @@ Player can move left/right, jump, walljump, and dash upwards to navigate 11 leve
 Levels were created using custom level editor. Setting boolean "edit_mode" to True inside main.py changes game to level editor upon launch. Levels are drawn on a grid using a selection of different tile types selected from a menu on the bottom of the screen. The level is then saved as an array into text file map_layout, including its directional positioning relative to other levels, so the screen can smoothly transition/slide over properly.
 
 <img width="500" height="540" alt="pygame_image_2" src="https://github.com/user-attachments/assets/1cdfb0f9-e829-4ad5-812d-662b64c889f7" />
+
 
 
