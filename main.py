@@ -1,5 +1,4 @@
 import os
-import sys
 from enum import Enum
 
 import pygame
@@ -36,7 +35,7 @@ first_load = True
 
 running = False
 
-player_lives = 5
+player_lives = 10
 
 # Colors
 tile_color = (100, 100, 100)
@@ -71,8 +70,6 @@ pygame.display.set_caption("Celeste")
 
 # Background color
 screen_color = (15, 15, 15)
-default_player_color = (255, 100, 100)
-no_dash_player_color = (100, 100, 255)
 
 # Set window size
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -317,13 +314,13 @@ def draw_end_screen():
             clear_room()
             load_room(0)
             reset_player()
-            player_lives = 5
+            player_lives = 10
             end_screen = False
     screen.fill("black")
     if player_lives >= 0:
-        screen.blit(small_font.render("You're done.", True, "white"), (250, 250))
+        screen.blit(small_font.render("You did it!!!", True, "white"), (250, 250))
     else:
-        screen.blit(small_font.render("You're dead.", True, "white"), (250, 250))
+        screen.blit(small_font.render("You're out of lives :c", True, "white"), (250, 250))
     screen.blit(small_font.render("(click to play again.)", True, "white"), (350, 450))
     pygame.display.update()
 
@@ -360,13 +357,12 @@ while not edit_mode and running:
         if current_room.room_number == 10:
             # Draw the final win ball in the final room and go to end screen on touch
             screen.blit(win_ball_img, (300, 200))
-            screen.blit(small_font.render("I'm done. Touch the object.", True, "white"), (480, 300))
+            screen.blit(small_font.render("You should totally touch the object...", True, "white"), (480, 300))
             if pygame.Rect.colliderect(plr.plr_hitbox, pygame.Rect([300, 200, win_ball_img.get_width(), win_ball_img.get_height()])):
                 end_screen = True
         elif current_room.room_number == 0:
             # Draw tutorial text in the first level
             screen.blit(small_font.render("A W D, Space for dash up", True, "white"), (480, 60))
-
 
         plr.update(screen)
 
@@ -398,7 +394,6 @@ while not edit_mode and running:
                 load_room(room)
             else:
                 # Kill side
-                print("Fell into a pit!")
                 reset_player()
 
         # print(round(clock.get_fps()))
@@ -410,7 +405,6 @@ while not edit_mode and running:
         clock.tick(60)
     else:
         draw_end_screen()
-
 
 
 """ EDIT MODE """
@@ -513,4 +507,3 @@ while edit_mode:
             current_room.spinners.remove(tile_rect)
 
     pygame.display.update()
-
